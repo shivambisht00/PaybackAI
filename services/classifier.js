@@ -66,7 +66,7 @@ function calculateRecoveryScore(transaction) {
 
   const failureTime = new Date(timestamp).getTime();
   const now = Date.now();
-  const hoursAgo = Math.max(0, (now - failureTime) / (1000 * 60 * 60));
+  const hoursAgo = isNaN(failureTime) ? 1 : Math.max(0, (now - failureTime) / (1000 * 60 * 60));
 
   if (hoursAgo <= 2) {
     recencyPoints = 95;

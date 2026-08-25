@@ -12,7 +12,7 @@ const adminRouter = require('./routes/admin');
 const webhookRouter = require('./routes/webhook');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Express Middleware
 app.use(cors());

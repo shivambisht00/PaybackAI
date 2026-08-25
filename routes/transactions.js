@@ -54,7 +54,9 @@ router.get('/transactions', (req, res) => {
     }
 
     query += ` LIMIT ? OFFSET ?`;
-    params.push(parseInt(limit, 10), parseInt(offset, 10));
+    const parsedLimit = Math.min(500, Math.max(1, parseInt(limit, 10) || 250));
+    const parsedOffset = Math.max(0, parseInt(offset, 10) || 0);
+    params.push(parsedLimit, parsedOffset);
 
     const transactions = db.prepare(query).all(...params);
     const totalCountStmt = db.prepare('SELECT COUNT(*) as total FROM transactions').get();
