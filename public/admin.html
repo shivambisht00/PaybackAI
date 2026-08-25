@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayBack AI | Admin Management Portal</title>
+  <meta name="theme-color" content="#0A0B10">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    .admin-auth-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 6, 10, 0.95);
+      backdrop-filter: blur(12px);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .admin-auth-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--cyan);
+      border-radius: 16px;
+      width: 100%;
+      max-width: 400px;
+      padding: 32px;
+      text-align: center;
+      box-shadow: 0 0 50px rgba(0, 240, 255, 0.2);
+    }
+  </style>
+</head>
+<body>
+  <!-- AUTH MODAL -->
+  <div class="admin-auth-overlay" id="admin-auth-overlay">
+    <div class="admin-auth-card">
+      <h2 style="font-family: var(--font-display); margin-bottom: 8px;">Admin Authentication</h2>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 24px;">Enter administrator password to access link invalidation controls.</p>
+      
+      <form id="admin-auth-form">
+        <input type="password" id="admin-pass-input" placeholder="Enter password (default: admin123)" required style="width: 100%; padding: 12px; background: #08090E; border: 1px solid var(--border); color: #FFF; border-radius: 8px; font-size: 0.95rem; margin-bottom: 16px; outline: none;">
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Authenticate</button>
+      </form>
+      <div id="auth-error-msg" style="color: var(--red); font-size: 0.85rem; margin-top: 12px; display: none;"></div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <div class="header-container">
+      <a href="/" class="logo">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="8" fill="#0A0B10"/>
+          <path d="M8 16L14 22L24 10" stroke="#00F0FF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        PayBack <span>AI Admin</span>
+      </a>
+      <div class="header-actions">
+        <a href="/" class="btn btn-outline">← Back to Dashboard</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTAINER -->
+  <main class="container">
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">Active Links</span>
+        <span class="kpi-value" id="admin-active-count" style="color: var(--cyan);">0</span>
+        <span class="kpi-sub">1 Active Link Per Transaction Limit</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Invalidated Links</span>
+        <span class="kpi-value" id="admin-invalidated-count" style="color: var(--red);">0</span>
+        <span class="kpi-sub">Superseded by Resend Actions</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Total Attempts Logs</span>
+        <span class="kpi-value" id="admin-total-attempts">0</span>
+        <span class="kpi-sub">Recovery Audit Trail</span>
+      </div>
+    </section>
+
+    <section class="table-card">
+      <div class="card-title" style="margin-bottom: 20px;">
+        <span>Recovery Link & Attempt Manager</span>
+        <button class="btn btn-outline" id="btn-refresh-admin" style="font-size: 0.8rem;">Refresh Logs</button>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Attempt ID</th>
+              <th>Tx ID</th>
+              <th>Customer</th>
+              <th>Channel</th>
+              <th>Retry Token</th>
+              <th>Link Status</th>
+              <th>Outcome</th>
+              <th>Expires At</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="admin-table-body">
+            <tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 32px;">Authenticate to load recovery attempts...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>
