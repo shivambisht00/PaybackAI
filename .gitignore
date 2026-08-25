@@ -1,10 +1,5 @@
 node_modules/
 .env
-data/*.db
-data/*.db-journal
-data/*.db-wal
+data/
 *.log
 .DS_Store
-
-
-
