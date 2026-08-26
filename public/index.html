@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PayBack AI | Intelligent Revenue Recovery Agent</title>
+  <meta name="description" content="AI-powered payment recovery platform converting failed subscription payments into recovered revenue.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230A0B10'/><path d='M8 16L14 22L24 10' stroke='%2300F0FF' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+</head>
+<body>
+  <!-- HEADER -->
+  <header>
+    <div class="header-container">
+      <a href="#" class="logo">
+        <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="8" fill="#0A0B10"/>
+          <path d="M8 16L14 22L24 10" stroke="#00F0FF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        PayBack <span>AI</span>
+      </a>
+      <div class="tagline">Turn failed payments into recovered revenue.</div>
+      <div class="header-actions">
+        <span class="badge-mode">TEST MODE</span>
+        <a href="/admin.html" class="btn btn-outline">Admin Portal</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="container">
+    <!-- KPI CARDS -->
+    <section class="kpi-grid">
+      <div class="kpi-card">
+        <span class="kpi-label">Failed Payments</span>
+        <span class="kpi-value" id="kpi-failed-count">0</span>
+        <span class="kpi-sub" id="kpi-failed-amount">₹0.00 Lost</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Recovered Payments</span>
+        <span class="kpi-value" id="kpi-recovered-count" style="color: var(--green);">0</span>
+        <span class="kpi-sub" id="kpi-recovered-amount" style="color: var(--green);">₹0.00 Recovered</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Recovery Rate</span>
+        <span class="kpi-value" id="kpi-recovery-rate" style="color: var(--cyan);">0.0%</span>
+        <span class="kpi-sub">Automated Autopilot</span>
+      </div>
+      <div class="kpi-card">
+        <span class="kpi-label">Total Transactions</span>
+        <span class="kpi-value" id="kpi-total-tx">250</span>
+        <span class="kpi-sub">Database Total</span>
+      </div>
+    </section>
+
+    <!-- FAILURE REASON DISTRIBUTION -->
+    <section class="distribution-card">
+      <div class="card-title">
+        <span>Failure Reason Distribution</span>
+        <span style="font-size: 0.85rem; color: var(--text-muted); font-weight: normal;">Live SQLite Metrics</span>
+      </div>
+      <div class="reasons-bar-container" id="reasons-distribution-container">
+        <div style="color: var(--text-muted);">Loading distribution metrics...</div>
+      </div>
+    </section>
+
+    <!-- TRANSACTION TABLE & CONTROLS -->
+    <section class="table-card">
+      <div class="table-controls">
+        <div class="search-box">
+          <input type="text" id="search-input" placeholder="Search customer name or transaction ID...">
+        </div>
+        <div class="filter-group">
+          <select id="status-filter" class="select-filter">
+            <option value="all">All Statuses</option>
+            <option value="failed" selected>Failed Only</option>
+            <option value="recovered">Recovered Only</option>
+          </select>
+
+          <select id="reason-filter" class="select-filter">
+            <option value="all">All Failure Reasons</option>
+            <option value="insufficient_funds">Insufficient Funds</option>
+            <option value="card_expired">Card Expired</option>
+            <option value="bank_server_down">Bank Server Down</option>
+            <option value="otp_failed">OTP Failed</option>
+            <option value="wrong_cvv">Wrong CVV</option>
+            <option value="network_error">Network Error</option>
+          </select>
+
+          <select id="sort-filter" class="select-filter">
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="amount_desc">Highest Amount</option>
+            <option value="score_desc">Highest Score</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Customer</th>
+              <th>Amount</th>
+              <th>Payment Method</th>
+              <th>Failure Reason</th>
+              <th>Age</th>
+              <th>Score</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="transaction-table-body">
+            <tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 32px;">Loading transaction database...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- ANALYZE MODAL (Task 13 / Section 23) -->
+  <div class="modal-overlay" id="analyze-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div>
+          <h2 style="font-family: var(--font-display); font-size: 1.5rem;" id="modal-customer-name">Customer Recovery Analysis</h2>
+          <span style="font-size: 0.85rem; color: var(--text-muted);" id="modal-tx-id">Transaction #0</span>
+        </div>
+        <button class="modal-close" id="modal-close-btn">&times;</button>
+      </div>
+
+      <div id="modal-body-content">
+        <!-- SCORE & OVERVIEW -->
+        <div class="score-display-box">
+          <div class="score-circle" id="modal-score-circle">--</div>
+          <div>
+            <h3 style="font-family: var(--font-display); font-size: 1.2rem;">Recovery Score</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem;" id="modal-score-summary">
+              Calculating recovery probability based on amount, failure cause, and time window...
+            </p>
+          </div>
+        </div>
+
+        <!-- EXPLAINABLE BREAKDOWN -->
+        <h4 style="font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 14px;">Why this score?</h4>
+        <div class="breakdown-list" id="modal-breakdown-container">
+          <!-- Populated dynamically via JS -->
+        </div>
+
+        <!-- RECOVERY STRATEGY -->
+        <div style="background: var(--bg-card); padding: 20px; border-radius: 12px; margin-bottom: 24px; border: 1px solid var(--border);">
+          <h4 style="font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 12px; color: var(--cyan);">Suggested Strategy</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 0.9rem;">
+            <div><strong>Recommended Channel:</strong> <span id="modal-strategy-channel" style="color: var(--cyan); text-transform: uppercase;">--</span></div>
+            <div><strong>Optimal Retry Time:</strong> <span id="modal-strategy-time">--</span></div>
+          </div>
+        </div>
+
+        <!-- GEMINI PERSONALIZED MESSAGE -->
+        <h4 style="font-family: var(--font-display); font-size: 1.1rem; margin-bottom: 10px;">Personalized AI Recovery Message</h4>
+        <div class="message-preview-box" id="modal-message-preview">Generating personalized message via Gemini AI...</div>
+
+        <!-- RETRY LINK & ACTIONS -->
+        <div style="background: rgba(0, 240, 255, 0.05); border: 1px solid var(--cyan); padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <strong style="color: var(--cyan);">Secure 1-Click Retry Link</strong>
+            <span style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--gold);" id="modal-expiry-timer">Expires in 30:00</span>
+          </div>
+          <input type="text" id="modal-retry-link-input" readonly style="width: 100%; background: #08090E; border: 1px solid var(--border); color: var(--cyan); padding: 10px 14px; border-radius: 6px; font-family: var(--font-mono); font-size: 0.88rem;">
+        </div>
+
+        <div style="display: flex; gap: 16px; justify-content: flex-end;">
+          <button class="btn btn-outline" id="btn-copy-link">Copy Retry Link</button>
+          <a href="#" target="_blank" class="btn btn-primary" id="btn-open-retry">Open Retry Page</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
