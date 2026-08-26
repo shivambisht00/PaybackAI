@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>paybackAI | Smart Payment Recovery Agent</title>
+  <meta name="description" content="Automated silent payment recovery for SaaS & digital subscription businesses. Recover 70%+ of failed payments on autopilot.">
+  <meta name="theme-color" content="#0A0B10">
+
+  <!-- OpenGraph Tags (patched at deploy) -->
+  <!-- DEPLOY STEP -->
+  <meta property="og:title" content="paybackAI | Smart Payment Recovery Agent">
+  <meta property="og:description" content="Automated payment recovery for SaaS businesses. Zero-friction card updating and intelligent retry logic.">
+  <meta property="og:image" content="assets/hero-poster.jpg">
+  <meta property="og:url" content="http://localhost:3000/">
+
+  <!-- Google Fonts: Space Grotesk, Plus Jakarta Sans, JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+
+  <!-- Inline SVG Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%230A0B10'/><path d='M8 16L14 22L24 10' stroke='%2300F0FF' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+
+  <style>
+    /* CSS RESET & VARIABLES */
+    :root {
+      --bg: #0A0B10;
+      --card-bg: #141620;
+      --cyan: #00F0FF;
+      --gold: #FFB800;
+      --text: #F4F6FB;
+      --text-muted: #8E95A5;
+      --border: rgba(0, 240, 255, 0.16);
+      --font-display: 'Space Grotesk', sans-serif;
+      --font-body: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --tshadow: 0 1px 2px rgba(5,5,10,0.95), 0 3px 12px rgba(5,5,10,0.78), 0 10px 44px rgba(5,5,10,0.8);
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      overflow-x: clip;
+      scroll-behavior: smooth;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* SKIP LINK FOR ACCESSIBILITY */
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 12px;
+      background: var(--cyan);
+      color: #000;
+      padding: 8px 16px;
+      font-weight: 700;
+      z-index: 1000;
+      border-radius: 4px;
+      transition: top 0.2s ease;
+    }
+    .skip-link:focus { top: 12px; }
+
+    /* BACKGROUND ENVIRONMENT LAYER */
+    .env-bg {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background: radial-gradient(circle at 50% 20%, rgba(0, 240, 255, 0.05) 0%, transparent 60%),
+                  radial-gradient(circle at 80% 80%, rgba(255, 184, 0, 0.04) 0%, transparent 50%);
+      animation: envPulse 40s ease-in-out infinite alternate;
+    }
+    @keyframes envPulse {
+      0% { transform: scale(1) translate(0, 0); }
+      100% { transform: scale(1.1) translate(-20px, 15px); }
+    }
+
+    /* NAVIGATION */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 5%;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+      background: rgba(10, 11, 16, 0.75);
+      border-bottom: 1px solid var(--border);
+    }
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+      text-decoration: none;
+    }
+    .brand-logo span { color: var(--cyan); }
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      list-style: none;
+    }
+    .nav-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+    .nav-links a:hover { color: var(--cyan); }
+
+    /* BUTTON STYLES */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 0.95rem;
+      text-decoration: none;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: transform 0.2s var(--ease-out), box-shadow 0.2s ease, background 0.2s ease;
+    }
+    .btn-primary {
+      background: var(--cyan);
+      color: #050810;
+      box-shadow: 0 0 20px rgba(0, 240, 255, 0.3);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 30px rgba(0, 240, 255, 0.5);
+    }
+    @media (pointer: coarse) {
+      .btn { min-height: 44px; }
+    }
+
+    /* ----------------------------------------------------
+       HERO SCROLL STAGE & PIPELINE (scrub-pipeline standard)
+       ---------------------------------------------------- */
+    #hero-container {
+      position: relative;
+      height: 400vh; /* 400vh scroll height for Tier 1 single journey */
+      z-index: 1;
+    }
+    #hero-stage {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .poster {
+      position: absolute;
+      inset: 0;
+      background-size: cover;
+      background-position: center;
+      z-index: 1;
+      transition: opacity 0.6s ease;
+    }
+    video#hero-video {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      z-index: 2;
+      opacity: 0;
+      transition: opacity 0.8s ease;
+      will-change: transform;
+    }
+    .stage-ready #hero-video { opacity: 1; }
+
+    /* STREAMING LOADING RING */
+    .ring {
+      position: absolute;
+      bottom: 40px;
+      right: 40px;
+      width: 44px;
+      height: 44px;
+      z-index: 10;
+      color: var(--cyan);
+      transition: opacity 0.5s ease;
+    }
+
+    /* GLOBAL SCRIM */
+    .scrim {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+      background: radial-gradient(ellipse 120% 90% at 50% 45%, rgba(10,10,18,0) 35%, rgba(10,10,18,0.68) 100%);
+    }
+
+    /* CAPTION BANDS & LEGIBILITY */
+    .band {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10%;
+      text-align: center;
+      opacity: 0;
+      pointer-events: none;
+      text-shadow: var(--tshadow);
+      transition: opacity 0.1s linear;
+    }
+    .band.active { pointer-events: auto; }
+
+    .band::before {
+      content: "";
+      position: absolute;
+      inset: -4%;
+      pointer-events: none;
+      opacity: calc(0.25 + 0.75 * var(--k, 1));
+      background: radial-gradient(ellipse 74% 62% at 50% 50%, rgba(5,5,10,0.68) 0%, rgba(5,5,10,0.46) 46%, rgba(5,5,10,0) 76%);
+    }
+
+    .band h2 {
+      font-family: var(--font-display);
+      font-size: clamp(2.2rem, 5vw, 4.2rem);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      max-width: 24ch;
+      color: #FFF;
+      position: relative;
+    }
+    .band p {
+      font-size: clamp(1.05rem, 2vw, 1.4rem);
+      color: var(--text-muted);
+      max-width: 48ch;
+      margin-top: 18px;
+      line-height: 1.5;
+      position: relative;
+    }
+
+    /* CHIP HUD READOUT */
+    .chip-hud {
+      position: absolute;
+      top: 100px;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 18px;
+      background: rgba(8, 8, 15, 0.65);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 30px;
+      backdrop-filter: blur(12px);
+      font-family: var(--font-mono);
+      font-size: 0.82rem;
+      color: var(--cyan);
+      z-index: 5;
+    }
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 10px var(--cyan);
+    }
+
+    /* CHOREOGRAPHY CHARACTER & WORD SPANS */
+    .w {
+      display: inline-block;
+      white-space: pre;
+      position: relative;
+    }
+    .c {
+      display: inline-block;
+      position: relative;
+    }
+
+    /* STATIC HERO BREAKPOINT GATES (The 5 Media Queries) */
+    @media (max-width: 720px),
+           (orientation: portrait) and (max-width: 1024px),
+           (orientation: portrait) and (pointer: coarse),
+           (orientation: landscape) and (pointer: coarse) and (max-height: 560px),
+           (prefers-reduced-motion: reduce) {
+      #hero-container { height: auto; }
+      #hero-stage { position: relative; height: 85vh; min-height: 540px; }
+      #hero-video { display: none !important; }
+      .poster { opacity: 1 !important; }
+      .ring { display: none !important; }
+      .band { opacity: 1 !important; position: absolute; }
+      .band:not(#band-settle) { display: none; }
+      #band-settle { opacity: 1 !important; pointer-events: auto; }
+    }
+
+    /* ----------------------------------------------------
+       LOWER SECTIONS (A Real Working Website Below)
+       ---------------------------------------------------- */
+    main { position: relative; z-index: 10; background: var(--bg); }
+
+    .section {
+      padding: 110px 8%;
+      max-width: 1300px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      text-align: center;
+      margin-bottom: 64px;
+    }
+    .section-kicker {
+      font-family: var(--font-mono);
+      color: var(--cyan);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 3.5vw, 3rem);
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    /* SECTION 1: THE INTERACTIVE RECOVERY SIMULATOR */
+    .simulator-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 48px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      align-items: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    @media (max-width: 900px) {
+      .simulator-card { grid-template-columns: 1fr; }
+    }
+
+    .sim-controls h3 {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      margin-bottom: 16px;
+    }
+    .sim-controls p {
+      color: var(--text-muted);
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+
+    .hold-btn {
+      position: relative;
+      width: 100%;
+      max-width: 340px;
+      height: 60px;
+      background: rgba(0, 240, 255, 0.08);
+      border: 1px solid var(--cyan);
+      border-radius: 10px;
+      color: var(--cyan);
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      overflow: hidden;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: border-color 0.2s ease;
+    }
+    .hold-progress {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 0%;
+      background: var(--cyan);
+      z-index: 1;
+      transition: width 0.05s linear;
+    }
+    .hold-text { position: relative; z-index: 2; color: #FFF; mix-blend-mode: difference; }
+
+    .sim-dashboard {
+      background: #090A0F;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 24px;
+      font-family: var(--font-mono);
+    }
+    .dash-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      font-size: 0.88rem;
+    }
+    .dash-status {
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.78rem;
+    }
+    .status-failed { background: rgba(255, 75, 75, 0.15); color: #FF4B4B; }
+    .status-recovered { background: rgba(0, 240, 255, 0.18); color: var(--cyan); }
+
+    /* SECTION 2: HOW IT WORKS (3 STEPS) */
+    .steps-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px;
+    }
+    @media (max-width: 900px) {
+      .steps-grid { grid-template-columns: 1fr; }
+    }
+    .step-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      transition: transform 0.3s var(--ease-out), border-color 0.3s ease;
+    }
+    .step-card:hover {
+      transform: translateY(-6px);
+      border-color: var(--cyan);
+    }
+    .step-img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+      border-bottom: 1px solid var(--border);
+    }
+    .step-body { padding: 24px; }
+    .step-num {
+      font-family: var(--font-mono);
+      color: var(--cyan);
+      font-size: 0.85rem;
+      margin-bottom: 8px;
+    }
+    .step-body h4 {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      margin-bottom: 10px;
+    }
+    .step-body p { color: var(--text-muted); font-size: 0.92rem; line-height: 1.5; }
+
+    /* SECTION 3: RECOVERY LEDGER & API BACKEND */
+    .ledger-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 32px;
+    }
+    .table-wrapper { overflow-x: auto; margin-top: 20px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+    th {
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .tag {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-family: var(--font-mono);
+      font-size: 0.78rem;
+    }
+
+    /* SECTION 4: FAQ ACCORDION */
+    .faq-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .faq-item {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .faq-question {
+      width: 100%;
+      padding: 20px 24px;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .faq-answer {
+      padding: 0 24px 20px 24px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      font-size: 0.95rem;
+      display: none;
+    }
+    .faq-item.open .faq-answer { display: block; }
+    .faq-item.open .faq-icon { transform: rotate(45deg); }
+    .faq-icon { transition: transform 0.2s ease; color: var(--cyan); }
+
+    /* SECTION 5: FINAL CTA FORM */
+    .cta-box {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.08) 0%, rgba(255, 184, 0, 0.04) 100%), var(--card-bg);
+      border: 1px solid var(--cyan);
+      border-radius: 20px;
+      padding: 64px 32px;
+      text-align: center;
+      max-width: 800px;
+      margin: 0 auto;
+      box-shadow: 0 0 40px rgba(0, 240, 255, 0.15);
+    }
+    .cta-box h2 {
+      font-family: var(--font-display);
+      font-size: 2.4rem;
+      margin-bottom: 16px;
+    }
+    .cta-box p {
+      color: var(--text-muted);
+      margin-bottom: 32px;
+      font-size: 1.1rem;
+    }
+    .cta-form {
+      display: flex;
+      gap: 12px;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+    @media (max-width: 600px) {
+      .cta-form { flex-direction: column; }
+    }
+    .cta-input {
+      flex: 1;
+      padding: 14px 20px;
+      border-radius: 8px;
+      background: #08090E;
+      border: 1px solid var(--border);
+      color: #FFF;
+      font-size: 1rem;
+      outline: none;
+    }
+    .cta-input:focus { border-color: var(--cyan); }
+    .form-success {
+      display: none;
+      color: var(--cyan);
+      font-weight: 600;
+      margin-top: 16px;
+    }
+
+    /* FOOTER */
+    footer {
+      padding: 40px 8%;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    footer a { color: var(--cyan); text-decoration: none; }
+  </style>
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to main content</a>
+  <div class="env-bg" aria-hidden="true"></div>
+
+  <!-- NAVIGATION -->
+  <nav>
+    <a href="#" class="brand-logo">
+      <svg width="24" height="24" viewBox="0 0 32 32" fill="none">
+        <rect width="32" height="32" rx="8" fill="#0A0B10"/>
+        <path d="M8 16L14 22L24 10" stroke="#00F0FF" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      payback<span>AI</span>
+    </a>
+    <ul class="nav-links">
+      <li><a href="#simulator">Simulator</a></li>
+      <li><a href="#how-it-works">How It Works</a></li>
+      <li><a href="#ledger">Live Ledger</a></li>
+      <li><a href="#faq">FAQ</a></li>
+      <li><a href="#cta" class="btn btn-primary">Start Recovery</a></li>
+    </ul>
+  </nav>
+
+  <!-- ----------------------------------------------------
+       HERO SCROLL SECTION (Tier 1 Single Journey)
+       ---------------------------------------------------- -->
+  <div id="hero-container">
+    <div id="hero-stage">
+      <div class="poster" style="background-image: url('assets/hero-poster.jpg');"></div>
+      <video id="hero-video" preload="none" muted playsinline aria-hidden="true" tabindex="-1"></video>
+      <div class="scrim" aria-hidden="true"></div>
+
+      <!-- STREAMING PROGRESS RING -->
+      <svg class="ring" viewBox="0 0 48 48" aria-hidden="true">
+        <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" stroke-width="3"
+                stroke-dasharray="126" style="stroke-dashoffset: var(--ld, 126);"/>
+      </svg>
+
+      <!-- CHIP READOUT HUD -->
+      <div class="chip-hud">
+        <div class="chip-dot"></div>
+        <span id="hud-status">SYSTEM ACTIVE • ENGINE IDLE</span>
+      </div>
+
+      <!-- CAPTION BAND 1 (Pain Hook) -->
+      <div class="band active" id="band-1" data-start="0.00" data-end="0.22">
+        <h2>20% of your churn is a lie.</h2>
+        <p>Expired cards and soft declines quietly drain your monthly recurring revenue.</p>
+      </div>
+
+      <!-- CAPTION BAND 2 (Intelligence Pivot) -->
+      <div class="band" id="band-2" data-start="0.28" data-end="0.52">
+        <h2>Silent AI retries intercept every decline.</h2>
+        <p>Smart algorithms re-attempt payments at the exact millisecond funds clear.</p>
+      </div>
+
+      <!-- CAPTION BAND 3 (Frictionless Recovery) -->
+      <div class="band" id="band-3" data-start="0.58" data-end="0.82">
+        <h2>1-click magic links. Zero login required.</h2>
+        <p>Empathetic SMS & email notifications allow customers to update payment details instantly.</p>
+      </div>
+
+      <!-- CAPTION BAND 4 (Settle & Action) -->
+      <div class="band" id="band-settle" data-start="0.88" data-end="1.00">
+        <h2>Recover your lost revenue on autopilot.</h2>
+        <p>Connect your Stripe account in 2 minutes. Pay only when we recover your cash.</p>
+        <div style="margin-top: 24px;">
+          <a href="#cta" class="btn btn-primary">Start Recovering Revenue</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ----------------------------------------------------
+       MAIN CONTENT (A Real Working Website Below)
+       ---------------------------------------------------- -->
+  <main id="main" tabindex="-1">
+    <!-- SECTION 1: INTERACTIVE SIMULATOR -->
+    <section id="simulator" class="section">
+      <div class="section-header">
+        <div class="section-kicker">Interactive Proof</div>
+        <h2 class="section-title">Test The Recovery Engine</h2>
+      </div>
+
+      <div class="simulator-card">
+        <div class="sim-controls">
+          <h3>Press and Hold to Recover</h3>
+          <p>Hold the button below to trigger our AI retry engine. Watch as failed transaction records automatically resolve to recovered revenue in real time.</p>
+
+          <button class="hold-btn" id="sim-hold-btn" aria-label="Press and hold to simulate payment recovery">
+            <div class="hold-progress" id="sim-progress"></div>
+            <span class="hold-text" id="sim-btn-label">Press & Hold To Recover</span>
+          </button>
+        </div>
+
+        <div class="sim-dashboard">
+          <div class="dash-row" style="color: var(--cyan); font-weight: bold;">
+            <span>TRANSACTION LOG</span>
+            <span id="sim-score">RECOVERY: 0.0%</span>
+          </div>
+          <div class="dash-row">
+            <span>Acme Corp ($1,250.00)</span>
+            <span class="dash-status status-failed" id="status-1">FAILED</span>
+          </div>
+          <div class="dash-row">
+            <span>Nova Systems ($499.00)</span>
+            <span class="dash-status status-failed" id="status-2">FAILED</span>
+          </div>
+          <div class="dash-row">
+            <span>CloudPulse Tech ($2,900.00)</span>
+            <span class="dash-status status-failed" id="status-3">FAILED</span>
+          </div>
+          <div class="dash-row" style="border: none; margin-top: 10px;">
+            <span style="color: var(--text-muted);">TOTAL RECOVERED:</span>
+            <span style="color: var(--cyan); font-weight: bold;" id="sim-total">$0.00</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: HOW IT WORKS -->
+    <section id="how-it-works" class="section">
+      <div class="section-header">
+        <div class="section-kicker">Automated Pipeline</div>
+        <h2 class="section-title">Three Steps to Full Recovery</h2>
+      </div>
+
+      <div class="steps-grid">
+        <div class="step-card">
+          <img src="assets/step1.jpg" alt="Stripe Integration" class="step-img">
+          <div class="step-body">
+            <div class="step-num">01 / INTEGRATE</div>
+            <h4>2-Minute Stripe Setup</h4>
+            <p>Connect via official OAuth webhooks. No custom code or engineering time required.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <img src="assets/step2.jpg" alt="AI Smart Retries" class="step-img">
+          <div class="step-body">
+            <div class="step-num">02 / AI RETRIES</div>
+            <h4>Silent Smart Execution</h4>
+            <p>Machine learning models calculate the optimal hour to retry failed charges per issuing bank.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <img src="assets/step3.jpg" alt="Magic Link Recovery" class="step-img">
+          <div class="step-body">
+            <div class="step-num">03 / MAGIC LINKS</div>
+            <h4>1-Tap Frictionless Links</h4>
+            <p>Branded notifications allow customers to update expired cards instantly without logging in.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: REAL-TIME TRANSACTION LEDGER -->
+    <section id="ledger" class="section">
+      <div class="section-header">
+        <div class="section-kicker">SQLite Backend Integration</div>
+        <h2 class="section-title">Live Transaction Database</h2>
+      </div>
+
+      <div class="ledger-container">
+        <p style="color: var(--text-muted); margin-bottom: 16px;">
+          Connected to live backend database (<code>./data/transactions.db</code> via Express API).
+        </p>
+        <div class="table-wrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Customer</th>
+                <th>Amount</th>
+                <th>Failure Reason</th>
+                <th>Status</th>
+                <th>Recovery Link</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-body">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading database transactions...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: FAQ -->
+    <section id="faq" class="section">
+      <div class="section-header">
+        <div class="section-kicker">Questions & Answers</div>
+        <h2 class="section-title">Frequently Asked Questions</h2>
+      </div>
+
+      <div class="faq-grid">
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>Will this annoy my existing subscribers?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            No. Silent retries resolve over 45% of failed payments without sending a single notification. For the remainder, we send polite, branded magic link notifications.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>What happens when a new recovery link is sent?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            Our backend invalidates all previous active links for that transaction instantly, ensuring only the newest secure link remains active.
+          </div>
+        </div>
+
+        <div class="faq-item">
+          <button class="faq-question">
+            <span>What is your pricing model?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-answer">
+            We operate on a 100% performance basis. We only charge a small percentage fee when money is successfully recovered back into your account.
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 5: FINAL CTA FORM -->
+    <section id="cta" class="section">
+      <div class="cta-box">
+        <div class="section-kicker">Start Today</div>
+        <h2>Plug the Leak in Your ARR</h2>
+        <p>Enter your business email to launch your automated recovery pipeline in under 2 minutes.</p>
+
+        <form class="cta-form" id="recovery-form">
+          <input type="email" class="cta-input" id="email-input" placeholder="founder@yourcompany.com" required>
+          <button type="submit" class="btn btn-primary">Start Recovery</button>
+        </form>
+        <div class="form-success" id="form-success-msg">
+          ✓ Account created! Check your email for your Stripe onboarding link.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>© 2026 paybackAI Inc. All rights reserved.</p>
+    <p style="margin-top: 8px; color: #5A6070;">
+      Disclaimer: paybackAI is a fictional brand demonstration site built with high-performance scroll choreography and Node.js backend.
+    </p>
+  </footer>
+
+  <!-- ----------------------------------------------------
+       SCRUB ENGINE & INTERACTIVE JAVASCRIPT
+       ---------------------------------------------------- -->
+  <script>
+    // 1. GATES & RESPONSIVE SCRUB DRIVE
+    const GATES = [
+      '(max-width: 720px)',
+      '(orientation: portrait) and (max-width: 1024px)',
+      '(orientation: portrait) and (pointer: coarse)',
+      '(orientation: landscape) and (pointer: coarse) and (max-height: 560px)',
+      '(prefers-reduced-motion: reduce)'
+    ];
+
+    const VIDEO_URL = 'assets/hero-scrub.mp4';
+    const heroContainer = document.getElementById('hero-container');
+    const heroStage = document.getElementById('hero-stage');
+    const video = document.getElementById('hero-video');
+    const ring = document.querySelector('.ring');
+    const hudStatus = document.getElementById('hud-status');
+    const bands = document.querySelectorAll('.band');
+
+    let scrubOn = false;
+    let target = 0;
+    let shown = 0;
+    let rafId = null;
+    let lastTick = 0;
+    let seekBusy = false;
+    let pendingTime = null;
+    let heroOnScreen = true;
+
+    // INTERSECTION OBSERVER FOR HERO STAGE
+    const stageObserver = new IntersectionObserver((entries) => {
+      heroOnScreen = entries[0].isIntersecting;
+      if (heroOnScreen && scrubOn && rafId === null) {
+        rafId = requestAnimationFrame(tick);
+      }
+    }, { threshold: 0.01 });
+    stageObserver.observe(heroContainer);
+
+    // BLOB STREAMING LOADER WITH LOADING RING
+    let blobLoaded = false;
+    async function loadHeroBlob() {
+      if (blobLoaded) return;
+      try {
+        const res = await fetch(VIDEO_URL);
+        if (!res.ok) throw new Error('Video fetch failed');
+        
+        const total = Number(res.headers.get('Content-Length')) || 12000000;
+        const reader = res.body.getReader();
+        const chunks = [];
+        let got = 0;
+
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          got += value.length;
+          const frac = Math.min(1, got / total);
+          ring.style.setProperty('--ld', Math.round(126 * (1 - frac)));
+        }
+
+        ring.style.setProperty('--ld', 0);
+        const blob = new Blob(chunks, { type: 'video/mp4' });
+        video.src = URL.createObjectURL(blob);
+        video.load();
+        blobLoaded = true;
+
+        video.addEventListener('canplay', () => {
+          heroStage.classList.add('stage-ready');
+          requestSeek(heroProgress() * (video.duration || 6));
+        }, { once: true });
+
+      } catch (err) {
+        console.warn('Video failed, using still poster hero fallback:', err);
+        heroStage.classList.add('video-failed');
+      }
+    }
+
+    // DEADLOCK-SAFE SEEK GATING
+    function requestSeek(t) {
+      if (!video.duration || isNaN(video.duration)) return;
+      if (seekBusy) { pendingTime = t; return; }
+      seekBusy = true;
+      video.currentTime = t;
+    }
+    video.addEventListener('seeked', () => {
+      seekBusy = false;
+      if (pendingTime !== null) {
+        const t = pendingTime;
+        pendingTime = null;
+        requestSeek(t);
+      }
+    });
+    video.addEventListener('error', () => {
+      seekBusy = false;
+      pendingTime = null;
+    });
+
+    // FRAME-RATE INDEPENDENT LERP LOOP
+    function tick(now) {
+      const dt = Math.min(100, now - (lastTick || now));
+      lastTick = now;
+      const k = 0.16;
+      shown += (target - shown) * (1 - Math.pow(1 - k, dt / 16.667));
+
+      if (Math.abs(target - shown) < 0.0005) {
+        shown = target;
+        rafId = null;
+        lastTick = 0;
+      } else if (heroOnScreen && scrubOn) {
+        rafId = requestAnimationFrame(tick);
+      }
+
+      if (video.duration) {
+        requestSeek(shown * video.duration);
+      }
+      updateCaptions(shown);
+    }
+
+    function heroProgress() {
+      const rect = heroContainer.getBoundingClientRect();
+      const scrollable = rect.height - window.innerHeight;
+      if (scrollable <= 0) return 0;
+      const current = -rect.top;
+      return Math.min(1, Math.max(0, current / scrollable));
+    }
+
+    function onScroll() {
+      target = heroProgress();
+      if (rafId === null && heroOnScreen && scrubOn) {
+        rafId = requestAnimationFrame(tick);
+      }
+    }
+
+    // PACED CAPTION BANDS & SMOOTHSTEP OPACITY
+    function smoothstep(p, e0, e1) {
+      const t = Math.min(1, Math.max(0, (p - e0) / (e1 - e0)));
+      return t * t * (3 - 2 * t);
+    }
+
+    function updateCaptions(p) {
+      bands.forEach((band, idx) => {
+        const start = parseFloat(band.dataset.start);
+        const end = parseFloat(band.dataset.end);
+        const f = Math.min(0.02, (end - start) / 3);
+
+        let opacity = 0;
+        if (idx === 0) {
+          // Band 1 opens settled
+          opacity = 1 - smoothstep(p, end - f, end);
+        } else if (idx === bands.length - 1) {
+          // Final band stays settled
+          opacity = smoothstep(p, start, start + f);
+        } else {
+          opacity = smoothstep(p, start, start + f) * (1 - smoothstep(p, end - f, end));
+        }
+
+        band.style.opacity = opacity.toFixed(3);
+        const kProgress = Math.min(1, Math.max(0, (p - start) / (end - start)));
+        band.style.setProperty('--k', kProgress.toFixed(3));
+
+        if (opacity > 0.1) {
+          band.classList.add('active');
+        } else {
+          band.classList.remove('active');
+        }
+      });
+
+      // Update HUD status label
+      const pct = Math.round(p * 100);
+      hudStatus.textContent = `PAYBACK ENGINE • RECOVERY MATRIX ${pct}%`;
+    }
+
+    // ENABLE/DISABLE SCRUB DRIVER
+    function enableScrub() {
+      if (scrubOn) return;
+      scrubOn = true;
+      loadHeroBlob();
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+    }
+    function disableScrub() {
+      if (!scrubOn) return;
+      scrubOn = false;
+      window.removeEventListener('scroll', onScroll);
+      if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+    }
+
+    function applyHeroMode() {
+      if (GATES.some(q => window.matchMedia(q).matches)) {
+        disableScrub();
+      } else {
+        enableScrub();
+      }
+    }
+    const MQLS = GATES.map(q => window.matchMedia(q));
+    MQLS.forEach(m => m.addEventListener('change', applyHeroMode));
+    applyHeroMode();
+
+    // 2. INTERACTIVE MOMENT: PRESS & HOLD SIMULATOR
+    const holdBtn = document.getElementById('sim-hold-btn');
+    const progressBar = document.getElementById('sim-progress');
+    const scoreText = document.getElementById('sim-score');
+    const totalText = document.getElementById('sim-total');
+    const status1 = document.getElementById('status-1');
+    const status2 = document.getElementById('status-2');
+    const status3 = document.getElementById('status-3');
+
+    let holdTimer = null;
+    let holdVal = 0;
+
+    function startHold() {
+      if (holdTimer) clearInterval(holdTimer);
+      holdTimer = setInterval(() => {
+        holdVal = Math.min(100, holdVal + 3);
+        progressBar.style.width = holdVal + '%';
+        scoreText.textContent = `RECOVERY: ${(holdVal * 0.847).toFixed(1)}%`;
+
+        if (holdVal >= 30) {
+          status1.textContent = 'RECOVERED';
+          status1.className = 'dash-status status-recovered';
+        }
+        if (holdVal >= 60) {
+          status2.textContent = 'RECOVERED';
+          status2.className = 'dash-status status-recovered';
+        }
+        if (holdVal >= 90) {
+          status3.textContent = 'RECOVERED';
+          status3.className = 'dash-status status-recovered';
+          totalText.textContent = '$4,649.00 ARR';
+        }
+
+        if (holdVal >= 100) {
+          clearInterval(holdTimer);
+        }
+      }, 30);
+    }
+
+    function endHold() {
+      if (holdVal < 100) {
+        if (holdTimer) clearInterval(holdTimer);
+        holdTimer = setInterval(() => {
+          holdVal = Math.max(0, holdVal - 5);
+          progressBar.style.width = holdVal + '%';
+          if (holdVal === 0) clearInterval(holdTimer);
+        }, 20);
+      }
+    }
+
+    holdBtn.addEventListener('mousedown', startHold);
+    holdBtn.addEventListener('mouseup', endHold);
+    holdBtn.addEventListener('mouseleave', endHold);
+    holdBtn.addEventListener('touchstart', (e) => { e.preventDefault(); startHold(); });
+    holdBtn.addEventListener('touchend', endHold);
+
+    // 3. FETCH LIVE TRANSACTIONS FROM EXPRESS SQLITE BACKEND
+    async function loadLedger() {
+      const tbody = document.getElementById('ledger-body');
+      try {
+        const res = await fetch('/api/transactions');
+        const json = await res.json();
+        if (json.success && json.data.length > 0) {
+          tbody.innerHTML = json.data.map(tx => `
+            <tr>
+              <td><code>#${tx.id}</code></td>
+              <td><strong>${tx.customer_name}</strong></td>
+              <td>$${tx.amount.toFixed(2)}</td>
+              <td><code>${tx.failure_reason}</code></td>
+              <td>
+                <span class="tag ${tx.status === 'recovered' ? 'status-recovered' : 'status-failed'}">
+                  ${tx.status.toUpperCase()}
+                </span>
+              </td>
+              <td>
+                <button class="btn btn-primary" style="padding: 4px 12px; font-size: 0.78rem;" onclick="triggerRecovery(${tx.id})">
+                  Trigger Link
+                </button>
+              </td>
+            </tr>
+          `).join('');
+        }
+      } catch (err) {
+        tbody.innerHTML = `<tr><td colspan="6" style="color: var(--text-muted);">Backend server offline. Start server with <code>node server.js</code>.</td></tr>`;
+      }
+    }
+    loadLedger();
+
+    window.triggerRecovery = async function(txId) {
+      try {
+        const res = await fetch('/api/recovery/attempt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ transaction_id: txId, channel: 'email' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`Recovery Link Created!\nToken: ${data.retry_token}\nLink: ${data.recovery_link}`);
+          loadLedger();
+        }
+      } catch (err) {
+        alert('API call failed: ' + err.message);
+      }
+    };
+
+    // 4. FAQ ACCORDION
+    document.querySelectorAll('.faq-question').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = btn.parentElement;
+        item.classList.toggle('open');
+      });
+    });
+
+    // 5. CONVERSION FORM SUBMISSION
+    const form = document.getElementById('recovery-form');
+    const successMsg = document.getElementById('form-success-msg');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = document.getElementById('email-input').value;
+      try {
+        await fetch('/api/recovery/demo-request', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+      } catch (err) { /* fallback */ }
+      form.style.display = 'none';
+      successMsg.style.display = 'block';
+    });
+  </script>
+</body>
+</html>
