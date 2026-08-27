@@ -76,14 +76,36 @@ router.post('/webhook/razorpay', (req, res) => {
 
 // GET /api/webhook/razorpay-redirect — Browser Redirect Handler after Razorpay Checkout
 router.get('/webhook/razorpay-redirect', (req, res) => {
-  const { token, razorpay_payment_status, razorpay_payment_id } = req.query;
+  const {
+    token,
+    razorpay_payment_status,
+    razorpay_payment_link_status,
+    razorpay_payment_id
+  } = req.query;
 
   if (token) {
     const attempt = db.prepare('SELECT * FROM recovery_attempts WHERE retry_token = ?').get(token);
-    if (attempt && (razorpay_payment_status === 'paid' || razorpay_payment_id)) {
-      db.prepare("UPDATE recovery_attempts SET link_status = 'used', outcome = 'recovered' WHERE id = ?").run(attempt.id);
+    const paymentComplete = razorpay_payment_status === 'paid' ||
+      razorpay_payment_link_status === 'paid' ||
+      Boolean(razorpay_payment_id);
+
+    if (attempt && paymentComplete) {
+      db.prepare(`
+        UPDATE recovery_attempts
+        SET link_status = 'used',
+            outcome = 'recovered',
+            recovered_at = COALESCE(recovered_at, ?),
+            razorpay_payment_id = COALESCE(?, razorpay_payment_id)
+        WHERE id = ?
+      `).run(new Date().toISOString(), razorpay_payment_id || null, attempt.id);
       db.prepare("UPDATE transactions SET status = 'recovered' WHERE id = ?").run(attempt.transaction_id);
+      return res.redirect(`/success.html?token=${encodeURIComponent(token)}`);
     }
+
+    if (attempt && (attempt.link_status === 'used' || attempt.outcome === 'recovered')) {
+      return res.redirect(`/success.html?token=${encodeURIComponent(token)}`);
+    }
+
     return res.redirect(`/retry.html?token=${token}`);
   }
 

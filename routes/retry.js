@@ -16,6 +16,27 @@ const razorpay = new Razorpay({
   key_secret: process.env.RAZORPAY_KEY_SECRET || 'rzp_test_dummy_secret',
 });
 
+function buildReceipt(attempt) {
+  const paidAt = attempt.recovered_at || attempt.created_at || new Date().toISOString();
+
+  return {
+    receipt_number: `PBAI-${String(attempt.transaction_id).padStart(6, '0')}-${String(attempt.id).padStart(6, '0')}`,
+    transaction_id: `TXN-${String(attempt.transaction_id).padStart(6, '0')}`,
+    attempt_id: attempt.id,
+    customer_name: attempt.customer_name,
+    customer_email: attempt.customer_email,
+    customer_phone: attempt.customer_phone,
+    amount: attempt.amount,
+    currency: 'INR',
+    payment_method: attempt.payment_method,
+    failure_reason: attempt.failure_reason,
+    status: 'recovered',
+    paid_at: paidAt,
+    razorpay_payment_id: attempt.razorpay_payment_id || null,
+    razorpay_order_id: attempt.razorpay_order_id || null
+  };
+}
+
 // GET /api/retry/validate/:token — Validate Token, Status, Expiry for Retry Portal
 router.get('/retry/validate/:token', (req, res) => {
   try {
@@ -126,8 +147,12 @@ router.post('/retry/verify-payment', async (req, res) => {
     const attempt = db.prepare('SELECT * FROM recovery_attempts WHERE retry_token = ?').get(token);
     if (!attempt) return res.status(404).json({ success: false, error: 'Token not found' });
 
-    // Generate Signature manually to compare with Razorpay's signature
     const secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!secret) {
+      return res.status(500).json({ success: false, error: 'Razorpay secret is not configured' });
+    }
+
+    // Generate Signature manually to compare with Razorpay's signature
     const generated_signature = crypto
       .createHmac('sha256', secret)
       .update(razorpay_order_id + "|" + razorpay_payment_id)
@@ -136,12 +161,21 @@ router.post('/retry/verify-payment', async (req, res) => {
     // Verification Logic
     if (generated_signature === razorpay_signature) {
       // Signature is valid! Update DB
-      db.prepare("UPDATE recovery_attempts SET link_status = 'used', outcome = 'recovered' WHERE id = ?").run(attempt.id);
+      const recoveredAt = new Date().toISOString();
+      db.prepare(`
+        UPDATE recovery_attempts
+        SET link_status = 'used',
+            outcome = 'recovered',
+            recovered_at = COALESCE(recovered_at, ?),
+            razorpay_payment_id = COALESCE(?, razorpay_payment_id),
+            razorpay_order_id = COALESCE(?, razorpay_order_id)
+        WHERE id = ?
+      `).run(recoveredAt, razorpay_payment_id, razorpay_order_id, attempt.id);
       db.prepare("UPDATE transactions SET status = 'recovered' WHERE id = ?").run(attempt.transaction_id);
 
       // ✨ Success mail ke liye transaction details fetch karo
       const fullDetails = db.prepare(`
-        SELECT r.*, t.customer_name, t.customer_email, t.amount, t.payment_method 
+        SELECT r.*, t.customer_name, t.customer_email, t.customer_phone, t.amount, t.payment_method, t.failure_reason
         FROM recovery_attempts r 
         JOIN transactions t ON r.transaction_id = t.id 
         WHERE r.id = ?
@@ -169,12 +203,42 @@ router.post('/retry/verify-payment', async (req, res) => {
 
       console.log(`🎉 [PAYMENT RECOVERED - SECURE] Transaction #${attempt.transaction_id} successfully processed via Razorpay!`);
 
-      res.json({ success: true, message: 'Payment authenticated and recovered successfully!' });
+      res.json({
+        success: true,
+        message: 'Payment authenticated and recovered successfully!',
+        receipt: buildReceipt(fullDetails)
+      });
     } else {
       console.error(`🚨 [SECURITY ALERT] Invalid payment signature for token ${token}`);
       res.status(400).json({ success: false, error: 'Digital signature validation failed. Potential tampering.' });
     }
     
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// GET /api/retry/receipt/:token — Stable receipt data for success page/download
+router.get('/retry/receipt/:token', (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const attempt = db.prepare(`
+      SELECT r.*, t.customer_name, t.customer_email, t.customer_phone, t.amount, t.payment_method, t.failure_reason, t.status as transaction_status
+      FROM recovery_attempts r
+      JOIN transactions t ON r.transaction_id = t.id
+      WHERE r.retry_token = ?
+    `).get(token);
+
+    if (!attempt) {
+      return res.status(404).json({ success: false, error: 'Receipt not found' });
+    }
+
+    if (attempt.link_status !== 'used' && attempt.transaction_status !== 'recovered') {
+      return res.status(409).json({ success: false, error: 'Payment is not recovered yet' });
+    }
+
+    res.json({ success: true, receipt: buildReceipt(attempt) });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }

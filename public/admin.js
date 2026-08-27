@@ -13,8 +13,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const totalAttempts = document.getElementById('admin-total-attempts');
   const tableBody = document.getElementById('admin-table-body');
   const btnRefresh = document.getElementById('btn-refresh-admin');
+  const btnLogout = document.getElementById('btn-admin-logout');
 
-  let adminPassword = localStorage.getItem('payback_admin_pass') || '';
+  function lockAdmin() {
+    authOverlay.style.display = 'flex';
+    tableBody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 32px;">Authenticate to load recovery attempts...</td></tr>`;
+  }
 
   // Auth Form Submit
   authForm.addEventListener('submit', async (e) => {
@@ -26,13 +30,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/admin/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
         body: JSON.stringify({ password: pass })
       });
       const data = await res.json();
 
       if (data.success) {
-        adminPassword = pass;
-        localStorage.setItem('payback_admin_pass', pass);
+        passInput.value = '';
         authOverlay.style.display = 'none';
         loadAdminOverview();
       } else {
@@ -45,32 +49,38 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Try auto-authenticating if password saved
-  if (adminPassword) {
-    fetch('/api/admin/auth', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ password: adminPassword })
-    }).then(r => r.json()).then(data => {
-      if (data.success) {
+  // Try auto-authenticating with the server-side admin session cookie.
+  fetch('/api/admin/session', { credentials: 'same-origin' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.authenticated) {
         authOverlay.style.display = 'none';
         loadAdminOverview();
+      } else {
+        lockAdmin();
       }
+    })
+    .catch(lockAdmin);
+
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async () => {
+      await fetch('/api/admin/logout', {
+        method: 'POST',
+        credentials: 'same-origin'
+      });
+      lockAdmin();
     });
   }
 
   // Load Admin Overview Data
   async function loadAdminOverview() {
     try {
-      const res = await fetch('/api/admin/overview', {
-        headers: { 'x-admin-password': adminPassword }
-      });
+      const res = await fetch('/api/admin/overview', { credentials: 'same-origin' });
       const json = await res.json();
 
       if (!json.success) {
         if (res.status === 401) {
-          authOverlay.style.display = 'flex';
-          localStorage.removeItem('payback_admin_pass');
+          lockAdmin();
         }
         return;
       }
@@ -132,9 +142,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/admin/resend', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': adminPassword
+          'Content-Type': 'application/json'
         },
+        credentials: 'same-origin',
         body: JSON.stringify({ transaction_id: txId })
       });
       const data = await res.json();
@@ -158,9 +168,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/admin/expire', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'x-admin-password': adminPassword
+          'Content-Type': 'application/json'
         },
+        credentials: 'same-origin',
         body: JSON.stringify({ attempt_id: attemptId })
       });
       const data = await res.json();

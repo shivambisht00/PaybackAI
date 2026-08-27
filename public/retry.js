@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const container = document.getElementById('portal-status-container');
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get('token');
+  const successUrl = `/success.html?token=${encodeURIComponent(token || '')}`;
 
   let countdownInterval = null;
 
@@ -28,8 +29,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       const statusData = await statusRes.json();
 
       if (statusData.recovered) {
-        // Agar payment pehle hi recover ho chuki hai, toh seedha Success dikhao!
-        renderSuccess({ customer_name: 'Valued Customer' }, 'Recovered Payment');
+        // Agar payment pehle hi recover ho chuki hai, toh seedha receipt page par jao.
+        window.location.replace(successUrl);
         return;
       }
 
@@ -142,7 +143,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           handler: async function (response) {
             // 3. Payment Success hone par Backend verify karega
             btn.textContent = 'Verifying Payment...';
-            verifyPayment(response, tx, amountStr);
+            await verifyPayment(response, tx, amountStr);
           },
           modal: {
             ondismiss: function() {
@@ -155,6 +156,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const rzp = new window.Razorpay(options);
         rzp.on('payment.failed', function (response){
            alert("Payment Failed. Reason: " + response.error.description);
+           btn.disabled = false;
+           btn.textContent = `Pay ${amountStr} Now ⚡`;
         });
         rzp.open();
 
@@ -182,7 +185,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const data = await res.json();
       
       if (data.success) {
-        renderSuccess(tx, amountStr);
+        window.location.assign(successUrl);
       } else {
         alert("Payment verification failed: " + (data.error || 'Invalid signature'));
         document.getElementById('btn-pay-now').disabled = false;
@@ -190,6 +193,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch(e) {
       alert("Error verifying payment.");
+      const btn = document.getElementById('btn-pay-now');
+      if (btn) {
+        btn.disabled = false;
+        btn.textContent = `Pay ${amountStr} Now ⚡`;
+      }
     }
   }
 
@@ -206,12 +214,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         <p style="color: var(--text-muted); font-size: 0.95rem; margin-bottom: 24px;">Thank you, ${tx.customer_name}. Your payment of <strong>${amountStr}</strong> has been successfully processed and your service is restored.</p>
         
         <div style="background: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 20px; font-size: 0.88rem; color: var(--text-muted);">
-          Transaction ID: <code style="color: var(--cyan);">${tx.id || 'TXN_' + Math.floor(Math.random()*1000000)}</code>
+          Transaction ID: <code style="color: var(--cyan);">TXN-${String(tx.id || '').padStart(6, '0')}</code>
         </div>
 
-        <button onclick="window.location.reload();" class="btn btn-outline" style="width: 100%; justify-content: center;">
+        <a href="${successUrl}" class="btn btn-outline" style="width: 100%; justify-content: center;">
           View Receipt Status 📄
-        </button>
+        </a>
       </div>
     `;
   }

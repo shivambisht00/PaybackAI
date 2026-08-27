@@ -1,23 +1,272 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Payment Successful - PayBack AI</title>
-    <style>
-        body { font-family: sans-serif; background: #0A0B10; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: #12141C; padding: 40px; border-radius: 12px; text-align: center; border: 1px solid #1E2230; max-width: 400px; }
-        h1 { color: #00F0FF; margin-bottom: 10px; }
-        p { color: #94A3B8; line-height: 1.5; }
-        .btn { display: inline-block; margin-top: 20px; background: #00F0FF; color: #000; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: bold; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Payment Receipt - PayBack AI</title>
+  <meta name="theme-color" content="#0A0B10">
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .receipt-shell {
+      width: 100%;
+      max-width: 560px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+    }
+
+    .success-icon {
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 18px;
+      color: var(--green);
+      border: 2px solid var(--green);
+      background: rgba(0, 230, 118, 0.13);
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .receipt-title {
+      font-family: var(--font-display);
+      text-align: center;
+      font-size: 1.65rem;
+      margin-bottom: 8px;
+    }
+
+    .receipt-subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.94rem;
+      margin-bottom: 24px;
+    }
+
+    .receipt-panel {
+      background: var(--bg-card);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 20px;
+    }
+
+    .receipt-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+      font-size: 0.94rem;
+    }
+
+    .receipt-row:last-child {
+      border-bottom: 0;
+    }
+
+    .receipt-label {
+      color: var(--text-muted);
+      flex: 0 0 42%;
+    }
+
+    .receipt-value {
+      text-align: right;
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .receipt-value code {
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-size: 0.86rem;
+    }
+
+    .receipt-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .status-message {
+      color: var(--text-muted);
+      text-align: center;
+      padding: 28px 0;
+    }
+
+    @media (max-width: 540px) {
+      .receipt-shell {
+        padding: 22px;
+      }
+
+      .receipt-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .receipt-row {
+        display: block;
+      }
+
+      .receipt-value {
+        text-align: left;
+        margin-top: 4px;
+      }
+    }
+  </style>
 </head>
 <body>
-    <div class="card">
-        <h1>Payment Successful! 🎉</h1>
-        <p>Thank you! Your payment has been securely processed and your account status is fully restored. You can now close this window.</p>
-        
-        <!-- Yahan humne button ko change kar diya hai taaki wo dashboard par na le jaye -->
-        <a href="javascript:window.close();" class="btn">Close Window</a>
+  <main class="receipt-shell">
+    <div class="success-icon">✓</div>
+    <h1 class="receipt-title">Payment Successful</h1>
+    <p class="receipt-subtitle" id="receipt-subtitle">Loading your receipt...</p>
+
+    <section class="receipt-panel" id="receipt-panel">
+      <div class="status-message">Fetching secure receipt details...</div>
+    </section>
+
+   <div class="receipt-actions">
+      <button class="btn btn-primary" id="download-receipt-btn" disabled>Download Receipt</button>
+      <a class="btn btn-outline" href="/" style="justify-content: center; text-decoration: none; display: flex; align-items: center;">Return to Home 🏠</a>
     </div>
+
+  </main>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const panel = document.getElementById('receipt-panel');
+    const subtitle = document.getElementById('receipt-subtitle');
+    const downloadButton = document.getElementById('download-receipt-btn');
+    let receipt = null;
+
+    const money = new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      maximumFractionDigits: 2
+    });
+
+    function formatDate(value) {
+      if (!value) return 'Not available';
+      return new Date(value).toLocaleString('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
+      });
+    }
+
+    function renderError(message) {
+      subtitle.textContent = 'Receipt unavailable';
+      panel.textContent = '';
+      const errorBox = document.createElement('div');
+      errorBox.className = 'status-message';
+      errorBox.textContent = message;
+      panel.appendChild(errorBox);
+      downloadButton.disabled = true;
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function row(label, value, isCode = false) {
+      const safeValue = value || 'Not available';
+      const displayValue = escapeHtml(safeValue);
+      return `
+        <div class="receipt-row">
+          <span class="receipt-label">${escapeHtml(label)}</span>
+          <span class="receipt-value">${isCode ? `<code>${displayValue}</code>` : displayValue}</span>
+        </div>
+      `;
+    }
+
+    function renderReceipt(data) {
+      receipt = data;
+      subtitle.textContent = `Thank you, ${receipt.customer_name}. Your payment has been recovered.`;
+
+      panel.innerHTML = [
+        row('Receipt Number', receipt.receipt_number, true),
+        row('Transaction ID', receipt.transaction_id, true),
+        row('Amount Paid', money.format(Number(receipt.amount || 0))),
+        row('Payment Date', formatDate(receipt.paid_at)),
+        row('Customer', receipt.customer_name),
+        row('Email', receipt.customer_email),
+        row('Payment Method', receipt.payment_method),
+        row('Razorpay Payment ID', receipt.razorpay_payment_id, true)
+      ].join('');
+
+      downloadButton.disabled = false;
+    }
+
+    function downloadReceipt() {
+      if (!receipt) return;
+
+      const content = [
+        'PayBack AI Payment Receipt',
+        '',
+        `Receipt Number: ${receipt.receipt_number}`,
+        `Transaction ID: ${receipt.transaction_id}`,
+        `Amount Paid: ${money.format(Number(receipt.amount || 0))}`,
+        `Payment Date: ${formatDate(receipt.paid_at)}`,
+        `Customer: ${receipt.customer_name || 'Not available'}`,
+        `Email: ${receipt.customer_email || 'Not available'}`,
+        `Phone: ${receipt.customer_phone || 'Not available'}`,
+        `Payment Method: ${receipt.payment_method || 'Not available'}`,
+        `Razorpay Payment ID: ${receipt.razorpay_payment_id || 'Not available'}`,
+        `Razorpay Order ID: ${receipt.razorpay_order_id || 'Not available'}`,
+        '',
+        'Status: Recovered'
+      ].join('\n');
+
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${receipt.receipt_number}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function loadReceipt() {
+      if (!token) {
+        renderError('No recovery token was provided.');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/retry/receipt/${encodeURIComponent(token)}`);
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          renderError(data.error || 'This receipt cannot be loaded yet.');
+          return;
+        }
+
+        renderReceipt(data.receipt);
+      } catch (err) {
+        renderError('Unable to connect to the receipt server.');
+      }
+    }
+
+    downloadButton.addEventListener('click', downloadReceipt);
+    loadReceipt();
+  </script>
 </body>
 </html>

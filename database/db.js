@@ -46,4 +46,17 @@ db.exec(`
   );
 `);
 
+function ensureColumn(tableName, columnName, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${tableName})`).all();
+  const exists = columns.some((column) => column.name === columnName);
+
+  if (!exists) {
+    db.prepare(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`).run();
+  }
+}
+
+ensureColumn('recovery_attempts', 'recovered_at', 'TEXT NULLABLE');
+ensureColumn('recovery_attempts', 'razorpay_payment_id', 'TEXT NULLABLE');
+ensureColumn('recovery_attempts', 'razorpay_order_id', 'TEXT NULLABLE');
+
 module.exports = db;
